@@ -1,32 +1,27 @@
 
-const bcrypt = require ('bcrypt')
-const { Pool } = require ('pg')
+const bcrypt = require('bcrypt')
+const { Pool } = require('pg')
+
 
 const pool = new Pool({
     host: 'localhost',
     user: 'javi',
     password: 'admin',
     database: 'softjobs',
-    port:'5432',
+    port: '5432',
     allowExitOnIdle: true
 })
 
+
+//REGISTRAR NUEVO USUARIO.
 const registerUser = async (user) => {
 
-let {email, bcryptPassword, rol, lenguage}= user
-
-    const query = ' INSERT INTO usuarios VALUES (DEFAULT, $1, $2, $3, $4)';
-    // const encrypt = bcrypt.hashSync(password, 1);
-
-    // password = encrypt;
-    console.log('imprime el usuario')
-    console.log(user)
-
-    const values = [ email, bcryptPassword, rol, lenguage]
-
+    let { email, bcryptPassword, rol, lenguage } = user //ALMACENAR  EN UNA VARIABLE TODOS LAS PROPIEDADES DEL USUARIO.
+    const query = ' INSERT INTO usuarios VALUES (DEFAULT, $1, $2, $3, $4)'; //INSERTAR VALORES DE LAS PROPIEDADES EN LA BASE DE DATOS
+    const values = [email, bcryptPassword, rol, lenguage] //VALORES QUE VAN A REEMPLAZAR LOS PLACEHOLDERS
 
     try {
-        return await pool.query(query, values)
+        return await pool.query(query, values) //CONSULTAR DB Y REEMPLAZA LOS VALORESDE DE LOS PLACEHOLDERS / EVITAR DEPENDENCY INJECTION
 
     }
     catch (error) {
@@ -35,33 +30,42 @@ let {email, bcryptPassword, rol, lenguage}= user
 }
 
 
+//LOGIN
 const verifyUser = async (email, password) => {
 
-    const query = 'SELECT * FROM usuarios WHERE email = $1 AND password = $2'
-    const values = [email, password]
-
     try {
+        const query = 'SELECT * FROM usuarios WHERE email = $1 AND password =$2' //VERIFICAR QUE EMAAIL Y CONTRASEÑA EXISTAN.
+        const values = [email, password]
 
-        const { rows: [email], rowCount } = await pool.query(query, values);
+        //rowCount: Número de usuarios registrados (debe ser 1)
+        const { row: [user], rowCount } = await pool.query(query, values);
 
-        if (rowCount == 1) {
+        if (!rowCount)
+            throw { code: 404, message: 'El usuario no existe' }
 
-            const passwordEncrypted = email.password;
-            const correctPassword = bcrypt.compareSync(password, passwordEncrypted);}
+        const { password: passwordEncrypted } = user
+        const correctPassword = bcrypt.compareSync(password, passwordEncrypted); //Compara 2 strings y responde true o false.
 
-            if (correctPassword) {
-                console.log('Usuario validado');
+        if (!rowCount || !correctPassword) {
 
-            } else {
-                console.log('Los datos no coinciden')
+            throw { code: 401, message: "Email o contraseña inválidos" }
+        }
 
-            
-            } 
+        if (correctPassword) {
+            console.log('Acceso correcto');
+
+
+        } else {
+            console.log('Los datos no coinciden')
+
+        }
     }
 
+    catch {
+        console.log(error)
 
- catch (error) {console.log('error')}};
-
+    };
+}
 const profileView = async (email) => {
 
     const query = 'SELECT email, rol, lenguage FROM usuarios'
