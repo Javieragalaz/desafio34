@@ -1,6 +1,6 @@
 
+const { Pool } = require('pg');
 const bcrypt = require('bcrypt')
-const { Pool } = require('pg')
 
 
 const pool = new Pool({
@@ -33,48 +33,35 @@ const registerUser = async (user) => {
 //LOGIN
 const verifyUser = async (email, password) => {
 
-    try {
-        const query = 'SELECT * FROM usuarios WHERE email = $1 AND password =$2' //VERIFICAR QUE EMAAIL Y CONTRASEÑA EXISTAN.
-        const values = [email, password]
+    const values = [email]
+    const query = 'SELECT * FROM usuarios WHERE email = $1'; //VERIFICAR QUE EMAAIL Y CONTRASEÑA EXISTAN.
+    
 
-        //rowCount: Número de usuarios registrados (debe ser 1)
-        const { row: [user], rowCount } = await pool.query(query, values);
-
-        if (!rowCount)
-            throw { code: 404, message: 'El usuario no existe' }
-
-        const { password: passwordEncrypted } = user
-        const correctPassword = bcrypt.compareSync(password, passwordEncrypted); //Compara 2 strings y responde true o false.
-
-        if (!rowCount || !correctPassword) {
-
-            throw { code: 401, message: "Email o contraseña inválidos" }
-        }
-
-        if (correctPassword) {
-            console.log('Acceso correcto');
+    //rowCount: Número de usuarios registrados (debe ser 1)
+    const { rows: [users], rowCount } = await pool.query(query, values);
 
 
-        } else {
-            console.log('Los datos no coinciden')
+    if (!rowCount)
+        throw { code: 404, message: 'El usuario no existe' };
 
-        }
-    }
+    const { password: passwordEncrypted } = users;
+    const correctPassword = bcrypt.compareSync(password, passwordEncrypted); //Compara 2 strings y responde true o false.
 
-    catch {
-        console.log(error)
+    if (!rowCount || !correctPassword) {
 
-    };
+        throw { code: 401, message: "Email y/o contraseña inválidos" }
+
 }
+
+};
+
 const profileView = async (email) => {
 
-    const query = 'SELECT email, rol, lenguage FROM usuarios'
-    const values = [email, rol, lenguage];
+        const query = "SELECT * FROM usuarios WHERE email = $1";
+        const values = [email];
+        const { rows: [user] } = await pool.query(query, values);
+        return user;
 
-    const { rows } = await pool.query(query, values)
-
-    return rows
-
-}
-
+    }
+    
 module.exports = { registerUser, verifyUser, profileView }

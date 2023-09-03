@@ -6,13 +6,13 @@ const morgan = require('morgan')
 const bcrypt = require('bcrypt')
 
 
-app.listen(3000, console.log("Server on"))
+app.listen(3009, console.log("Server on"))
 app.use(cors())
 app.use(express.json())
 app.use(morgan('dev'))
 
 
-const { verifyToken } = require('./middlewares')
+const { report } = require('./middlewares');
 const { registerUser, verifyUser, profileView } = require('./queries');
 
 
@@ -39,46 +39,32 @@ app.post("/usuarios", async (req, res) => {
 
 });
 
+//Login
+app.post('/login',report, async (req, res) => {
 
-//login
-app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    await verifyUser(email, password);
 
-    try {
-
-        const { email, password } = req.body;
-        await verifyUser(email, password);
-
-        //Generar token.    
-        const token = jwt.sign({ email, password }, 'secretKey') //Payload, Secret key: contraseña para decifrar tokens.
-
-        res.send(token);
-
-
-    }
-
-    catch (error) {
-        console.log(error)
-        res.status(error.code || 500).send(error)
-    }
-})
+    //Generar token.    
+    const token = jwt.sign({ email }, 'secretKey') //Payload, Secret key: contraseña para decifrar tokens.
+    res.send(token);
+}
+)
 
 // Mostrar datos del usuario (Autorizado)
-app.get("/perfil", verifyToken, async (req, res) => {
+app.get("/usuarios" , report, async (req, res) => {
 
-    try {
+    const Authorization = req.header("Authorization");
+    const token = Authorization.split("Bearer ")[1];
+    jwt.verify(token, 'Secret Password');
+    const { email } = jwt.decode(token);
 
-        const authorization = req.header ("Authorization");
-        const token = authorization.split ("Bearer ")[1]
-        jwt.verify(token, "Secret Password")
-
-        const user = await profileView()
-        res.send(user)
+    const user = await profileView(email)
+    res.json(user)
 
 
-    } catch (error) {
-        res.status(error.code || 500).send(error)
+}
 
-    }
-})
+)
 
 
