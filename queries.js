@@ -12,56 +12,64 @@ const pool = new Pool({
     allowExitOnIdle: true
 })
 
-
-//REGISTRAR NUEVO USUARIO.
 const registerUser = async (user) => {
 
-    let { email, bcryptPassword, rol, lenguage } = user //ALMACENAR  EN UNA VARIABLE TODOS LAS PROPIEDADES DEL USUARIO.
-    const query = ' INSERT INTO usuarios VALUES (DEFAULT, $1, $2, $3, $4)'; //INSERTAR VALORES DE LAS PROPIEDADES EN LA BASE DE DATOS
-    const values = [email, bcryptPassword, rol, lenguage] //VALORES QUE VAN A REEMPLAZAR LOS PLACEHOLDERS
+    let { email, password, rol, lenguage } = user
 
-    try {
-        return await pool.query(query, values) //CONSULTAR DB Y REEMPLAZA LOS VALORESDE DE LOS PLACEHOLDERS / EVITAR DEPENDENCY INJECTION
 
-    }
-    catch (error) {
-        console.log(error);
-    }
-}
+    // ENCRIPTAR LAS CONTRASEÑAS DE LOS NUEVOS USUARIOS 
+    const passwordEncrypted = bcrypt.hash(password, 10)
+    password = passwordEncrypted
+
+    const values = [email, passwordEncrypted, rol, lenguage]
+    const query = "INSERT INTO usuarios values (DEFAULT, $1, $2, $3, $4)"
+    await pool.query(query, values)
+};
 
 
 //LOGIN
 const verifyUser = async (email, password) => {
 
-    const values = [email]
-    const query = 'SELECT * FROM usuarios WHERE email = $1'; //VERIFICAR QUE EMAAIL Y CONTRASEÑA EXISTAN.
-    
+    const query = "Select * from usuarios where email = $1";
+    const values = [email];
 
-    //rowCount: Número de usuarios registrados (debe ser 1)
-    const { rows: [users], rowCount } = await pool.query(query, values);
+    try {
 
+        const {rows: [user], rowCount} = await pool.query(query, values);
 
-    if (!rowCount)
-        throw { code: 404, message: 'El usuario no existe' };
+        if (rowCount == 1) {
 
-    const { password: passwordEncrypted } = users;
-    const correctPassword = bcrypt.compareSync(password, passwordEncrypted); //Compara 2 strings y responde true o false.
+            const passwordFromDBEncripted = user.password;
+            const correctPassword = bcrypt.compareSync(password, passwordFromDBEncripted);
 
-    if (!rowCount || !correctPassword) {
+            if (correctPassword){
+                console.log("validado!");
+                return {error:false, msg: "Usuario correcto"};
+            } else {
+                console.log("falso !");
+                return {error:true, msg: "Usuario o contraseña inválido"};
+            }
 
-        throw { code: 401, message: "Email y/o contraseña inválidos" }
+        } else {
+            return {error:true, msg: "Usuario o contraseña inválido"};
+            
+        }
+
+    } catch (error) {
+        console.log(error);
+        return {error:true, msg: "Hubo un error inesperado"};
+    }
 
 }
 
-};
 
-const profileView = async (email) => {
+const profile = async (email) => {
 
-        const query = "SELECT * FROM usuarios WHERE email = $1";
-        const values = [email];
-        const { rows: [user] } = await pool.query(query, values);
-        return user;
+    const query = "SELECT * FROM usuarios WHERE email = $1";
+    const values = [email];
+    const { rows: [user] } = await pool.query(query, values);
+    return user;
 
-    }
-    
-module.exports = { registerUser, verifyUser, profileView }
+}
+
+module.exports = { registerUser, verifyUser, profile }

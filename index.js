@@ -12,50 +12,40 @@ app.use(express.json())
 app.use(morgan('dev'))
 
 
-const { report } = require('./middlewares');
 const { registerUser, verifyUser, profileView } = require('./queries');
+const { report } = require('./middlewares')
 
 
-//Registrar
-app.post("/usuarios", async (req, res) => {
-
-    const { email, password, rol, lenguage } = req.body;
-
+//REGISTRAR USUARIO
+app.post("/usuarios",report, async (req, res) => {
     try {
-
-        const bcryptPassword = await bcrypt.hash(password, 10);
-
-        console.log("Password encriptado: ", bcryptPassword)
-
-        const rows = await registerUser({ email, bcryptPassword, rol, lenguage });
-
-        console.log(rows)
-        return res.json("Usuario registrado.");
-    }
-    catch (error) {
-        console.error(error.message);
-        res.status(500).json({ message: error.message });
+        const user = req.body;
+        await registerUser(user);
+        res.send('usuario registrado con exito');
+    } catch (error) {
+        res.status(error.code || 500).send(error)
     }
 
-});
+})
 
-//Login
-app.post('/login',report, async (req, res) => {
+//LOGIN
+app.post("/login",report, async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        await verifyUser(email, password);
+        const token = jwt.sign({ email }, "secreto");
+        res.send(token);
+    } catch (error) {
+        res.status(error.code || 500).send(error)
+    }
 
-    const { email, password } = req.body;
-    await verifyUser(email, password);
-
-    //Generar token.    
-    const token = jwt.sign({ email }, 'secretKey') //Payload, Secret key: contraseña para decifrar tokens.
-    res.send(token);
-}
-)
+})
 
 // Mostrar datos del usuario (Autorizado)
-app.get("/usuarios" , report, async (req, res) => {
+app.get("/usuarios", report, async (req, res) => {
 
-    const Authorization = req.header("Authorization");
-    const token = Authorization.split("Bearer ")[1];
+    const Authorization = req.header('Authorization');
+    const token = Authorization.split("Bearer ")[1]; //SEPARAR BEARER Y TOKEN
     jwt.verify(token, 'Secret Password');
     const { email } = jwt.decode(token);
 
