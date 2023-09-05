@@ -3,7 +3,6 @@ const cors = require('cors')
 const app = express();
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
-const bcrypt = require('bcrypt')
 
 
 app.listen(3009, console.log("Server on"))
@@ -13,14 +12,13 @@ app.use(morgan('dev'))
 
 
 const { registerUser, verifyUser, profileView } = require('./queries');
-const { report } = require('./middlewares')
-
+const { report, verifyLogin, verifyToken }= require ('./middlewares')
 
 //REGISTRAR USUARIO
-app.post("/usuarios",report, async (req, res) => {
+app.post("/usuarios", report, async (req, res) => {
     try {
-        const user = req.body;
-        await registerUser(user);
+        const newUser = req.body;
+        await registerUser(newUser);
         res.send('usuario registrado con exito');
     } catch (error) {
         res.status(error.code || 500).send(error)
@@ -29,31 +27,34 @@ app.post("/usuarios",report, async (req, res) => {
 })
 
 //LOGIN
-app.post("/login",report, async (req, res) => {
+app.post("/login",verifyLogin, report, async (req, res) => {
     try {
         const { email, password } = req.body;
-        await verifyUser(email, password);
-        const token = jwt.sign({ email }, "secreto");
-        res.send(token);
+         result = await verifyUser(email, password);
+         if (!result.error) {
+            const token = jwt.sign({email}, "Secret.key");
+            console.log(token)
+            res.send(token);
+        } else {
+            res.status(400).send(result.msg);
+        }
     } catch (error) {
         res.status(error.code || 500).send(error)
     }
 
 })
 
-// Mostrar datos del usuario (Autorizado)
-app.get("/usuarios", report, async (req, res) => {
+// MOSTRAR DATOS DEL USUARIO (AUTORIZADO)
+app.get("/usuarios", verifyToken, report, async (req, res) => {
 
     const Authorization = req.header('Authorization');
     const token = Authorization.split("Bearer ")[1]; //SEPARAR BEARER Y TOKEN
-    jwt.verify(token, 'Secret Password');
-    const { email } = jwt.decode(token);
+    const {email} = jwt.verify(token, 'Secret.key');
+    
 
-    const user = await profileView(email)
-    res.json(user)
-
-
-}
+    const profile = await profileView()
+    res.send(profile)
+} 
 
 )
 
